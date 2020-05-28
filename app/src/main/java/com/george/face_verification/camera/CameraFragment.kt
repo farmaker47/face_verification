@@ -1,4 +1,4 @@
-package com.george.face_verification
+package com.george.face_verification.camera
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.ColorDrawable
 import android.hardware.Camera
 import android.hardware.display.DisplayManager
@@ -17,13 +18,13 @@ import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.KeyEvent
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
-import android.widget.Button
 import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -31,17 +32,23 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.net.toFile
 import androidx.core.view.setPadding
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
+import com.george.face_verification.MainActivity
+import com.george.face_verification.PermissionsFragment
+import com.george.face_verification.R
 import com.george.face_verification.databinding.FragmentCameraBinding
 import com.george.face_verification.utils.ANIMATION_FAST_MILLIS
 import com.george.face_verification.utils.ANIMATION_SLOW_MILLIS
 import com.george.face_verification.utils.simulateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.getKoin
+import org.koin.android.viewmodel.ext.android.viewModel
 import java.io.File
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
@@ -65,7 +72,7 @@ typealias LumaListener = (luma: Double) -> Unit
 
 class CameraFragment : Fragment() {
 
-    val EXTENSION_WHITELIST = arrayOf("JPG")
+    private val EXTENSION_WHITELIST = arrayOf("JPG")
 
     private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: PreviewView
@@ -80,6 +87,9 @@ class CameraFragment : Fragment() {
     private var imageAnalyzer: ImageAnalysis? = null
     private var camera: androidx.camera.core.Camera? = null
     private var cameraProvider: ProcessCameraProvider? = null
+
+    private val viewModel: CameraFragmentViewModel by viewModel()
+    private lateinit var savedUri: Uri
 
     private val displayManager by lazy {
         requireContext().getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
@@ -123,7 +133,10 @@ class CameraFragment : Fragment() {
         super.onResume()
         // Make sure that all permissions are still present, since the
         // user could have removed them while the app was in paused state.
-        if (!PermissionsFragment.hasPermissions(requireContext())) {
+        if (!PermissionsFragment.hasPermissions(
+                requireContext()
+            )
+        ) {
             findNavController().navigate(
                 R.id.action_camera_to_permissions
             )
@@ -144,7 +157,8 @@ class CameraFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?): View? {
+        savedInstanceState: Bundle?
+    ): View? {
         binding = FragmentCameraBinding.inflate(inflater)
 
 
@@ -190,7 +204,10 @@ class CameraFragment : Fragment() {
         displayManager.registerDisplayListener(displayListener, null)
 
         // Determine the output directory
-        outputDirectory = MainActivity.getOutputDirectory(requireContext())
+        outputDirectory =
+            MainActivity.getOutputDirectory(
+                requireContext()
+            )
 
         // Wait for the views to be properly laid out
         binding.viewFinder.post {
@@ -295,12 +312,16 @@ class CameraFragment : Fragment() {
             .build()
             // The analyzer can then be assigned to the instance
             .also {
-                it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
-                    // Values returned from our analyzer are passed to the attached listener
-                    // We log image analysis results here - you should do something useful
-                    // instead!
-                    Log.d(TAG, "Average luminosity: $luma")
-                })
+                it.setAnalyzer(cameraExecutor,
+                    LuminosityAnalyzer { luma ->
+                        // Values returned from our analyzer are passed to the attached listener
+                        // We log image analysis results here - you should do something useful
+                        // instead!
+                        Log.d(
+                            TAG,
+                            "Average luminosity: $luma"
+                        )
+                    })
             }
 
         // Must unbind the use-cases before rebinding them
@@ -310,7 +331,8 @@ class CameraFragment : Fragment() {
             // A variable number of use-cases can be passed here -
             // camera provides access to CameraControl & CameraInfo
             camera = cameraProvider.bindToLifecycle(
-                this, cameraSelector, preview, imageCapture, imageAnalyzer)
+                this, cameraSelector, preview, imageCapture, imageAnalyzer
+            )
 
             // Attach the viewfinder's surface provider to preview use case
             preview?.setSurfaceProvider(binding.viewFinder.createSurfaceProvider(camera?.cameraInfo))
@@ -347,13 +369,17 @@ class CameraFragment : Fragment() {
         }
 
         // Inflate a new view containing all UI for controlling the camera
-        val controls = View.inflate(requireContext(), R.layout.camera_ui_container, container)
+        val controls = View.inflate(
+            requireContext(),
+            R.layout.camera_ui_container, container
+        )
 
         // In the background, load latest photo taken (if any) for gallery thumbnail
         lifecycleScope.launch(Dispatchers.IO) {
             outputDirectory.listFiles { file ->
                 EXTENSION_WHITELIST.contains(file.extension.toUpperCase(Locale.ROOT))
             }?.max()?.let {
+                //Log.e("URI", Uri.fromFile(it).toString())
                 setGalleryThumbnail(Uri.fromFile(it))
             }
         }
@@ -365,7 +391,12 @@ class CameraFragment : Fragment() {
             imageCapture?.let { imageCapture ->
 
                 // Create output file to hold the image
-                val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
+                val photoFile =
+                    createFile(
+                        outputDirectory,
+                        FILENAME,
+                        PHOTO_EXTENSION
+                    )
 
                 // Setup image capture metadata
                 val metadata = ImageCapture.Metadata().apply {
@@ -387,8 +418,15 @@ class CameraFragment : Fragment() {
                         }
 
                         override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                            val savedUri = output.savedUri ?: Uri.fromFile(photoFile)
+                            savedUri = output.savedUri ?: Uri.fromFile(photoFile)
                             Log.d(TAG, "Photo capture succeeded: $savedUri")
+                            getKoin().setProperty("pathInfo", savedUri.toString())
+                            viewModel.setPathOfLatestPhoto(savedUri.toString())
+                            /*withContext(Dispatchers.Main) {
+                                // call to UI thread
+                                _selectedPhotoPath.value = path
+                            }*/
+
 
                             // We can only change the foreground Drawable using API level 23+ API
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -416,6 +454,7 @@ class CameraFragment : Fragment() {
                             ) { _, uri ->
                                 Log.d(TAG, "Image capture scanned into media store: $uri")
                             }
+
                         }
                     })
 
@@ -426,7 +465,8 @@ class CameraFragment : Fragment() {
                     container.postDelayed({
                         container.foreground = ColorDrawable(Color.WHITE)
                         container.postDelayed(
-                            { container.foreground = null }, ANIMATION_FAST_MILLIS)
+                            { container.foreground = null }, ANIMATION_FAST_MILLIS
+                        )
                     }, ANIMATION_SLOW_MILLIS)
                 }
             }
@@ -578,8 +618,10 @@ class CameraFragment : Fragment() {
 
         /** Helper function used to create a timestamped file */
         private fun createFile(baseFolder: File, format: String, extension: String) =
-            File(baseFolder, SimpleDateFormat(format, Locale.US)
-                .format(System.currentTimeMillis()) + extension)
+            File(
+                baseFolder, SimpleDateFormat(format, Locale.US)
+                    .format(System.currentTimeMillis()) + extension
+            )
     }
     /*override fun onCreateView(
             inflater: LayoutInflater, container: ViewGroup?,

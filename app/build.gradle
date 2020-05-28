@@ -61,6 +61,11 @@ dependencies {
     implementation 'androidx.navigation:navigation-fragment-ktx:2.2.2'
     implementation 'androidx.navigation:navigation-ui-ktx:2.2.2'
 
+    //implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
+    // Coroutines
+    //implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$version_kotlin_coroutines"
+    //implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$version_kotlin_coroutines"
+
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
@@ -68,13 +73,10 @@ dependencies {
     // CameraX core library
     def camerax_version = '1.0.0-beta03'
     implementation "androidx.camera:camera-core:$camerax_version"
-
     // CameraX Camera2 extensions
     implementation "androidx.camera:camera-camera2:$camerax_version"
-
     // CameraX Lifecycle library
     implementation "androidx.camera:camera-lifecycle:$camerax_version"
-
     // CameraX View class
     implementation 'androidx.camera:camera-view:1.0.0-alpha10'
 
@@ -84,5 +86,18 @@ dependencies {
     // Glide
     implementation 'com.github.bumptech.glide:glide:4.11.0'
 
+    // Local BroadcastManager
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
+
+    // TF Lite
+    implementation('org.tensorflow:tensorflow-lite:2.1.0')
+
+    // Koin for Kotlin
+    implementation "org.koin:koin-core:$koin_version"
+    // Koin for Android
+    implementation "org.koin:koin-android:$koin_version"
+    // Koin Android Scope features
+    implementation "org.koin:koin-android-scope:$koin_version"
+    // Koin Android ViewModel features
+    implementation "org.koin:koin-android-viewmodel:$koin_version"
 }

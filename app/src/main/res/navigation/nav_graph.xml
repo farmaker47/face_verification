@@ -35,7 +35,7 @@
 
     <fragment
         android:id="@+id/camera_fragment"
-        android:name="com.george.face_verification.CameraFragment"
+        android:name="com.george.face_verification.camera.CameraFragment"
         android:label="CameraFragment" >
 
         <action
