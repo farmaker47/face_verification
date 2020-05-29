@@ -100,4 +100,7 @@ dependencies {
     implementation "org.koin:koin-android-scope:$koin_version"
     // Koin Android ViewModel features
     implementation "org.koin:koin-android-viewmodel:$koin_version"
+
+    // Play services for Face detector
+    implementation  'com.google.android.gms:play-services:12.0.1'
 }

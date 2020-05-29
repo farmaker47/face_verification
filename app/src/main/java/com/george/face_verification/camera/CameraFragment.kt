@@ -611,13 +611,13 @@ class CameraFragment : Fragment() {
     companion object {
 
         private const val TAG = "CameraXBasic"
-        private const val FILENAME = "yyyy-MM-dd-HH-mm-ss-SSS"
-        private const val PHOTO_EXTENSION = ".jpg"
+        const val FILENAME = "yyyy-MM-dd-HH-mm-ss-SSS"
+        const val PHOTO_EXTENSION = ".jpg"
         private const val RATIO_4_3_VALUE = 4.0 / 3.0
         private const val RATIO_16_9_VALUE = 16.0 / 9.0
 
         /** Helper function used to create a timestamped file */
-        private fun createFile(baseFolder: File, format: String, extension: String) =
+        fun createFile(baseFolder: File, format: String, extension: String) =
             File(
                 baseFolder, SimpleDateFormat(format, Locale.US)
                     .format(System.currentTimeMillis()) + extension
