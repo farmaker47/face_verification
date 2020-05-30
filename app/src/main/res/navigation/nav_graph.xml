@@ -22,7 +22,7 @@
 
     <fragment
         android:id="@+id/permissions_fragment"
-        android:name="com.george.face_verification.PermissionsFragment"
+        android:name="com.george.face_verification.permissions.PermissionsFragment"
         android:label="PermissionsFragment" >
 
         <action
