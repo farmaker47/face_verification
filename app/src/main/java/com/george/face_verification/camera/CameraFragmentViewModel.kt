@@ -2,10 +2,7 @@ package com.george.face_verification.camera
 
 import android.app.Application
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Matrix
+import android.graphics.*
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
@@ -82,11 +79,9 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             val fileDescriptor: FileDescriptor? = parcelFileDescriptor?.fileDescriptor
             image = BitmapFactory.decodeFileDescriptor(fileDescriptor)
             parcelFileDescriptor?.close()
-
         } catch (e: IOException) {
             e.printStackTrace()
         }
-
         return image
     }
 
@@ -128,19 +123,23 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         Log.e("VIEW_MODEL", getKoin().getProperty("pathInfo"))
 
         originalBitmap = uriToBitmap(path.toUri())
+
+        //originalBitmap = uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/2020-05-30-17-22-11-664.jpg".toUri())
+
         Log.e("WIDTH_ORIGINAL", originalBitmap?.width.toString())
         Log.e("HEIGHT_ORIGINAL", originalBitmap?.height.toString())
         Log.e("PATH_TO_URI", path)
 
         val preLongStr: String = path.substring(0, 5)
         Log.e("PRE", preLongStr)
-        val postLongStr: String = path.substring(5, path.length)
-        Log.e("AFTER",postLongStr)
+        val postLongStr: String = path.substring(7, path.length)
+        Log.e("AFTER", postLongStr)
 
-        //rotatedBitmap = modifyOrientation(originalBitmap, preLongStr + "//" + postLongStr)
+        // ExifInterface wants uri starting with /storage.. so we truncate string path
+        rotatedBitmap = modifyOrientation(originalBitmap, postLongStr)
 
         viewModelScope.launch {
-            detectFaces(originalBitmap)
+            detectFaces(rotatedBitmap)
         }
 
     }
@@ -186,52 +185,57 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         var y2 = 0
         var width = 0
         var height = 0
-        for (i in 0 until faces.size()) {
-            val thisFace = faces.valueAt(i)
-            x1 = thisFace.position.x.toInt()
-            y1 = thisFace.position.y.toInt()
-            Log.e("POSITION_X", x1.toString())
-            Log.e("POSITION_Y", y1.toString())
-            x2 = (x1 + thisFace.width).toInt()
-            y2 = (y1 + thisFace.height).toInt()
-            width = thisFace.width.toInt()
-            height = thisFace.height.toInt()
-            /*tempCanvas.drawRoundRect(
-                RectF(x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat()),
-                2f,
-                2f,
-                myRectPaint
-            )*/
-        }
-        val croppedFaceBitmap = Bitmap.createBitmap(tempBitmap, x1, y1, width, height)
-        //val cropp = Bitmap.createBitmap()
 
-        // myImageView.setImageDrawable(new BitmapDrawable(getResources(),tempBitmap));
+        if (faces.size() > 0) {
+            for (i in 0 until faces.size()) {
+                val thisFace = faces.valueAt(i)
+                x1 = thisFace.position.x.toInt()
+                y1 = thisFace.position.y.toInt()
+                Log.e("POSITION_X", x1.toString())
+                Log.e("POSITION_Y", y1.toString())
+                x2 = (x1 + thisFace.width).toInt()
+                y2 = (y1 + thisFace.height).toInt()
+                width = thisFace.width.toInt()
+                height = thisFace.height.toInt()
+                /*tempCanvas.drawRoundRect(
+                    RectF(x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat()),
+                    2f,
+                    2f,
+                    myRectPaint
+                )*/
+            }
+            val croppedFaceBitmap =
+                Bitmap.createBitmap(tempBitmap, x1, y1 - 200, width, height + 300)
+            //val cropp = Bitmap.createBitmap()
 
-        // Create file to save picture
-        // Create output file to hold the image
-        val photoFile =
-            CameraFragment.createFile(
-                outputDirectory,
-                CameraFragment.FILENAME,
-                CameraFragment.PHOTO_EXTENSION
-            )
+            // myImageView.setImageDrawable(new BitmapDrawable(getResources(),tempBitmap));
 
-        val mypath = File(outputDirectory, "molvedo.jpg")
-        val fos: FileOutputStream?
-        try {
-            fos = FileOutputStream(mypath, false)
-            croppedFaceBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
-            fos.close()
-        } catch (e: Exception) {
-            Log.e("SAVE_IMAGE", e.message, e)
+            // Create file to save picture
+            // Create output file to hold the image
+            val photoFile =
+                CameraFragment.createFile(
+                    outputDirectory,
+                    CameraFragment.FILENAME,
+                    CameraFragment.PHOTO_EXTENSION
+                )
+
+            val mypath = File(outputDirectory, "molvedo.jpg")
+            val fos: FileOutputStream?
+            try {
+                fos = FileOutputStream(mypath, false)
+                croppedFaceBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
+                fos.close()
+            } catch (e: Exception) {
+                Log.e("SAVE_IMAGE", e.message, e)
+            }
         }
 
 
     }
 
     private fun modifyOrientation(bitmap: Bitmap?, image_absolute_path: String): Bitmap? {
-        val ei = ExifInterface(image_absolute_path)
+        val ei =
+            ExifInterface(image_absolute_path)
         val orientation =
             ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
         return when (orientation) {
@@ -256,13 +260,5 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         return Bitmap.createBitmap(bitmap!!, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    // Get real path for exifInterface
-    private fun getRealPathFromURI(contentUri: Uri): String {
-        val proj = arrayOf(MediaStore.Images.Media.DATA)
-        val cursor = context.contentResolver.query(contentUri, proj, null, null, null)
-        val columnindex: Int = cursor!!.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-        cursor.moveToFirst()
-        return cursor.getString(columnindex)
-    }
 }
 

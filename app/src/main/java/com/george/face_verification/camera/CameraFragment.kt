@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
+import android.util.Size
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -70,7 +71,6 @@ typealias LumaListener = (luma: Double) -> Unit
 class CameraFragment : Fragment() {
 
     private val EXTENSION_WHITELIST = arrayOf("JPG")
-
     private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: PreviewView
     private lateinit var outputDirectory: File
@@ -284,6 +284,7 @@ class CameraFragment : Fragment() {
         preview = Preview.Builder()
             // We request aspect ratio but no resolution
             .setTargetAspectRatio(screenAspectRatio)
+            //.setTargetResolution(Size(4000, 2250))
             // Set initial target rotation
             .setTargetRotation(rotation)
             .build()
@@ -294,6 +295,7 @@ class CameraFragment : Fragment() {
             // We request aspect ratio but no resolution to match preview config, but letting
             // CameraX optimize for whatever specific resolution best fits our use cases
             .setTargetAspectRatio(screenAspectRatio)
+            //.setTargetResolution(Size(4000, 2250))
             // Set initial target rotation, we will have to call this again if rotation changes
             // during the lifecycle of this use case
             .setTargetRotation(rotation)
@@ -303,6 +305,7 @@ class CameraFragment : Fragment() {
         imageAnalyzer = ImageAnalysis.Builder()
             // We request aspect ratio but no resolution
             .setTargetAspectRatio(screenAspectRatio)
+            //.setTargetResolution(Size(4000, 2250))
             // Set initial target rotation, we will have to call this again if rotation changes
             // during the lifecycle of this use case
             .setTargetRotation(rotation)
