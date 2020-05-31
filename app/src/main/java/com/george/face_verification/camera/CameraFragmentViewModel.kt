@@ -2,6 +2,7 @@ package com.george.face_verification.camera
 
 import android.app.Application
 import android.content.Context
+import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -25,10 +26,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.java.KoinJavaComponent.getKoin
-import java.io.File
-import java.io.FileDescriptor
-import java.io.FileOutputStream
-import java.io.IOException
+import org.tensorflow.lite.DataType
+import org.tensorflow.lite.Interpreter
+import java.io.*
+import java.nio.MappedByteBuffer
+import java.nio.channels.FileChannel
+import java.util.*
 
 
 class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
@@ -46,12 +49,14 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private var faceDetector: FaceDetector? = null
     private var outputDirectory: File
 
+    private lateinit var interpreter: Interpreter
+
     // Initialize the __ MutableLiveData
     init {
         pathOfPhoto = ""
 
         viewModelScope.launch {
-
+            initializeInterpreter(app)
         }
 
         faceDetector = FaceDetector.Builder(context)
@@ -62,6 +67,48 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             MainActivity.getOutputDirectory(
                 context
             )
+    }
+
+    // Initialize interpreter
+    @Throws(IOException::class)
+    private suspend fun initializeInterpreter(app: Application) = withContext(Dispatchers.IO) {
+        // Load the TF Lite model from asset folder and initialize TF Lite Interpreter without NNAPI enabled.
+        val assetManager = app.assets
+        val model = loadModelFile(assetManager, "face_recog.tflite")
+        val options = Interpreter.Options()
+        options.setUseNNAPI(false)
+        interpreter = Interpreter(model, options)
+        // Reads type and shape of input and output tensors, respectively.
+        val imageTensorIndex = 0
+        val imageShape: IntArray =
+            interpreter.getInputTensor(imageTensorIndex).shape() // {1, length}
+        Log.e("INPUT_TENSOR_WHOLE", Arrays.toString(imageShape))
+        val imageDataType: DataType =
+            interpreter.getInputTensor(imageTensorIndex).dataType()
+        Log.e("INPUT_DATA_TYPE", imageDataType.toString())
+        val probabilityTensorIndex = 0
+        val probabilityShape: IntArray =
+            interpreter.getOutputTensor(probabilityTensorIndex).shape()// {1, NUM_CLASSES}
+        Log.e("OUTPUT_TENSOR_SHAPE", Arrays.toString(probabilityShape))
+        val probabilityDataType: DataType =
+            interpreter.getOutputTensor(probabilityTensorIndex).dataType()
+        Log.e("OUTPUT_DATA_TYPE", probabilityDataType.toString())
+        Log.e(TAG, "Initialized TFLite interpreter.")
+
+
+        // Inputs outputs
+        /*val inputTensorModel: Int = interpreter.getInputIndex("input_1")
+        Log.e("INPUT_TENSOR", inputTensorModel.toString())*/
+    }
+
+    @Throws(IOException::class)
+    private fun loadModelFile(assetManager: AssetManager, filename: String): MappedByteBuffer {
+        val fileDescriptor = assetManager.openFd(filename)
+        val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
+        val fileChannel = inputStream.channel
+        val startOffset = fileDescriptor.startOffset
+        val declaredLength = fileDescriptor.declaredLength
+        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
     }
 
     /*//originalBitmap = getBitmapFromAsset(app, "george_black.jpg")
@@ -119,8 +166,8 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Retrieve original bitmap
         originalBitmap = uriToBitmap(path.toUri())
 
-        Log.i("WIDTH_ORIGINAL", originalBitmap?.width.toString())
-        Log.i("HEIGHT_ORIGINAL", originalBitmap?.height.toString())
+        Log.i("WIDTH_ORIGINAL", originalBitmap.width.toString())
+        Log.i("HEIGHT_ORIGINAL", originalBitmap.height.toString())
         Log.i("PATH_TO_URI", path)
 
         // Get specific path for EXIFINTERFACE
@@ -248,7 +295,12 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // Transverse orientation aka int = 7
-    private fun rotateImageTransverse(img: Bitmap, degree: Float, horizontal: Boolean, vertical: Boolean): Bitmap? {
+    private fun rotateImageTransverse(
+        img: Bitmap,
+        degree: Float,
+        horizontal: Boolean,
+        vertical: Boolean
+    ): Bitmap? {
         val matrix = Matrix()
         matrix.postRotate(degree)
         matrix.preScale((if (horizontal) -1 else 1).toFloat(), (if (vertical) -1 else 1).toFloat())
@@ -257,6 +309,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         img.recycle()
         return rotatedImg
     }
+
     private fun rotateImage(img: Bitmap, degree: Float): Bitmap? {
         val matrix = Matrix()
         matrix.postRotate(degree)
@@ -265,11 +318,16 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         img.recycle()
         return rotatedImg
     }
+
     private fun flipImage(bitmap: Bitmap?, horizontal: Boolean, vertical: Boolean): Bitmap {
         val matrix = Matrix()
         matrix.preScale((if (horizontal) -1 else 1).toFloat(), (if (vertical) -1 else 1).toFloat())
         return Bitmap.createBitmap(bitmap!!, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
+    companion object {
+        private const val TAG = "MainActivityViewModel"
+        private const val OUTPUT_CLASSES_COUNT = 3
+    }
 }
 
