@@ -48,17 +48,11 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
     // Initialize the __ MutableLiveData
     init {
-
-        //originalBitmap = Bitmap.createBitmap(cropSize, cropSize, Bitmap.Config.ARGB_8888);
-        // _selectedPhotoPath.value = ""
         pathOfPhoto = ""
 
         viewModelScope.launch {
 
         }
-        /*originalBitmap = getBitmapFromAsset(app, "george_black.jpg")
-        Log.e("HEIGHT", originalBitmap?.height.toString())
-        Log.e("WIDTH", originalBitmap?.width.toString())*/
 
         faceDetector = FaceDetector.Builder(context)
             .setTrackingEnabled(false)
@@ -70,9 +64,11 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             )
     }
 
+    /*//originalBitmap = getBitmapFromAsset(app, "george_black.jpg")
     private fun getBitmapFromAsset(context: Context, path: String): Bitmap =
-        context.assets.open(path).use { BitmapFactory.decodeStream(it) }
+        context.assets.open(path).use { BitmapFactory.decodeStream(it) }*/
 
+    // Uri to bitmap
     private fun uriToBitmap(selectedFileUri: Uri): Bitmap {
         lateinit var image: Bitmap
         try {
@@ -87,7 +83,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         return image
     }
 
-    private suspend fun getNews() = withContext(Dispatchers.IO) {
+    private suspend fun getBitmap() = withContext(Dispatchers.IO) {
 
         /*Log.e("IMPORTANT", "IMPORTANT")
         Thread(Runnable {
@@ -115,31 +111,26 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
     }
 
+    // This is called from Camera fragment to set the path of latest photo taken
     fun setPathOfLatestPhoto(path: String) {
-        /*withContext(Dispatchers.Main) {
-            // call to UI thread
-            _selectedPhotoPath.value = path
-        }*/
 
+        // If you use Koin injection
         pathOfPhoto = getKoin().getProperty("pathInfo")
-        Log.e("VIEW_MODEL", getKoin().getProperty("pathInfo"))
-
+        // Retrieve original bitmap
         originalBitmap = uriToBitmap(path.toUri())
 
-        //originalBitmap = uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/2020-05-30-17-22-11-664.jpg".toUri())
+        Log.i("WIDTH_ORIGINAL", originalBitmap?.width.toString())
+        Log.i("HEIGHT_ORIGINAL", originalBitmap?.height.toString())
+        Log.i("PATH_TO_URI", path)
 
-        Log.e("WIDTH_ORIGINAL", originalBitmap?.width.toString())
-        Log.e("HEIGHT_ORIGINAL", originalBitmap?.height.toString())
-        Log.e("PATH_TO_URI", path)
-
-        val preLongStr: String = path.substring(0, 5)
-        Log.e("PRE", preLongStr)
+        // Get specific path for EXIFINTERFACE
         val postLongStr: String = path.substring(7, path.length)
-        Log.e("AFTER", postLongStr)
-
+        Log.i("AFTER", postLongStr)
         // ExifInterface wants uri starting with /storage.. so we truncate string path
+        // Also we modify orientation so Face detector gets faces
         rotatedBitmap = modifyOrientation(originalBitmap, postLongStr)
 
+        // Everything in background thread because it does heavy computation
         viewModelScope.launch {
             detectFaces(rotatedBitmap)
         }
@@ -160,8 +151,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         val tempCanvas = Canvas(tempBitmap)
         tempCanvas.drawBitmap(bitmap, 0F, 0F, null)
 
-
-        // Create the Face Detector
+        // Create the Face Detector with parameters
         val detector: FaceDetector = FaceDetector.Builder(context)
             .setTrackingEnabled(true)
             .setLandmarkType(FaceDetector.ALL_LANDMARKS)
@@ -175,28 +165,26 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         // Detect the Faces
         val frame: Frame = Frame.Builder().setBitmap(bitmap).build()
+        // Use facedetector or detector object
         val faces: SparseArray<Face>? = faceDetector?.detect(frame)
+        Log.i("NUMBER_FACES", faces!!.size().toString())
 
-        Log.e("NUMBER_FACES", faces!!.size().toString())
-
-        // For every face draw rectangle
-
+        // For every face get coordinates and draw red rectangle if desired
         var x1 = 0
-        var x2 = 0
+        //var x2 = 0
         var y1 = 0
-        var y2 = 0
+        //var y2 = 0
         var width = 0
         var height = 0
-
         if (faces.size() > 0) {
             for (i in 0 until faces.size()) {
                 val thisFace = faces.valueAt(i)
                 x1 = thisFace.position.x.toInt()
                 y1 = thisFace.position.y.toInt()
-                Log.e("POSITION_X", x1.toString())
-                Log.e("POSITION_Y", y1.toString())
-                x2 = (x1 + thisFace.width).toInt()
-                y2 = (y1 + thisFace.height).toInt()
+                Log.i("POSITION_X", x1.toString())
+                Log.i("POSITION_Y", y1.toString())
+                //x2 = (x1 + thisFace.width).toInt()
+                //y2 = (y1 + thisFace.height).toInt()
                 width = thisFace.width.toInt()
                 height = thisFace.height.toInt()
                 /*tempCanvas.drawRoundRect(
@@ -206,11 +194,10 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
                     myRectPaint
                 )*/
             }
+
+            // Use this to widen picture on top or bottom
             val croppedFaceBitmap =
                 Bitmap.createBitmap(tempBitmap, x1, y1 - 200, width, height + 300)
-            //val cropp = Bitmap.createBitmap()
-
-            // myImageView.setImageDrawable(new BitmapDrawable(getResources(),tempBitmap));
 
             // Create file to save picture
             // Create output file to hold the image
@@ -221,6 +208,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
                     CameraFragment.PHOTO_EXTENSION
                 )
 
+            // Use this specific name for created face bitmap
             val mypath = File(outputDirectory, "molvedo.jpg")
             val fos: FileOutputStream?
             try {
@@ -228,13 +216,14 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
                 croppedFaceBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
                 fos.close()
             } catch (e: Exception) {
-                Log.e("SAVE_IMAGE", e.message, e)
+                Log.i("SAVE_IMAGE", e.message, e)
             }
         }
 
 
     }
 
+    // Modify orientation to help face detector
     private fun modifyOrientation(bitmap: Bitmap, image_absolute_path: String): Bitmap? {
         val ei =
             ExifInterface(image_absolute_path)
@@ -258,13 +247,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /*private fun rotateImage(bitmap: Bitmap?, degrees: Float): Bitmap {
-        val matrix = Matrix()
-        matrix.postRotate(degrees)
-        return Bitmap.createBitmap(bitmap!!, 0, 0, bitmap.width, bitmap.height, matrix, true)
-    }*/
-
-    // Transverse orientation
+    // Transverse orientation aka int = 7
     private fun rotateImageTransverse(img: Bitmap, degree: Float, horizontal: Boolean, vertical: Boolean): Bitmap? {
         val matrix = Matrix()
         matrix.postRotate(degree)
@@ -274,7 +257,6 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         img.recycle()
         return rotatedImg
     }
-
     private fun rotateImage(img: Bitmap, degree: Float): Bitmap? {
         val matrix = Matrix()
         matrix.postRotate(degree)
@@ -283,7 +265,6 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         img.recycle()
         return rotatedImg
     }
-
     private fun flipImage(bitmap: Bitmap?, horizontal: Boolean, vertical: Boolean): Bitmap {
         val matrix = Matrix()
         matrix.preScale((if (horizontal) -1 else 1).toFloat(), (if (vertical) -1 else 1).toFloat())
