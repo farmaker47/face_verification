@@ -2,10 +2,12 @@ package com.george.face_verification.camera
 
 import android.app.Application
 import android.content.Context
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Matrix
 import android.net.Uri
 import android.os.ParcelFileDescriptor
-import android.provider.MediaStore
 import android.util.Log
 import android.util.SparseArray
 import androidx.appcompat.app.AlertDialog
@@ -38,7 +40,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         get() = _selectedPhotoPath
 
     private var pathOfPhoto: String?
-    private var originalBitmap: Bitmap? = null
+    private lateinit var originalBitmap: Bitmap
     private var rotatedBitmap: Bitmap? = null
     private val context = getApplication<Application>().applicationContext
     private var faceDetector: FaceDetector? = null
@@ -54,9 +56,9 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
 
         }
-        originalBitmap = getBitmapFromAsset(app, "george_black.jpg")
+        /*originalBitmap = getBitmapFromAsset(app, "george_black.jpg")
         Log.e("HEIGHT", originalBitmap?.height.toString())
-        Log.e("WIDTH", originalBitmap?.width.toString())
+        Log.e("WIDTH", originalBitmap?.width.toString())*/
 
         faceDetector = FaceDetector.Builder(context)
             .setTrackingEnabled(false)
@@ -71,8 +73,8 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private fun getBitmapFromAsset(context: Context, path: String): Bitmap =
         context.assets.open(path).use { BitmapFactory.decodeStream(it) }
 
-    private fun uriToBitmap(selectedFileUri: Uri): Bitmap? {
-        var image: Bitmap? = null
+    private fun uriToBitmap(selectedFileUri: Uri): Bitmap {
+        lateinit var image: Bitmap
         try {
             val parcelFileDescriptor: ParcelFileDescriptor? =
                 context.contentResolver.openFileDescriptor(selectedFileUri, "r")
@@ -233,25 +235,53 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
     }
 
-    private fun modifyOrientation(bitmap: Bitmap?, image_absolute_path: String): Bitmap? {
+    private fun modifyOrientation(bitmap: Bitmap, image_absolute_path: String): Bitmap? {
         val ei =
             ExifInterface(image_absolute_path)
         val orientation =
             ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        Log.e("ORIENTATION", orientation.toString())
         return when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> rotateImage(bitmap, 90f)
-            ExifInterface.ORIENTATION_ROTATE_180 -> rotateImage(bitmap, 180f)
-            ExifInterface.ORIENTATION_ROTATE_270 -> rotateImage(bitmap, 270f)
+            ExifInterface.ORIENTATION_ROTATE_90 -> rotateImage(bitmap, 90F)
+            ExifInterface.ORIENTATION_ROTATE_180 -> rotateImage(bitmap, 180F)
+            ExifInterface.ORIENTATION_ROTATE_270 -> rotateImage(bitmap, 270F)
+
+            // My phone Xiaomi RedMi Note
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                rotateImageTransverse(bitmap, 270F, false, true)
+                //flipImage(bitmap, true, false)
+            }
+
             ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> flipImage(bitmap, true, false)
             ExifInterface.ORIENTATION_FLIP_VERTICAL -> flipImage(bitmap, false, true)
             else -> bitmap
         }
     }
 
-    private fun rotateImage(bitmap: Bitmap?, degrees: Float): Bitmap {
+    /*private fun rotateImage(bitmap: Bitmap?, degrees: Float): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(degrees)
         return Bitmap.createBitmap(bitmap!!, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    }*/
+
+    // Transverse orientation
+    private fun rotateImageTransverse(img: Bitmap, degree: Float, horizontal: Boolean, vertical: Boolean): Bitmap? {
+        val matrix = Matrix()
+        matrix.postRotate(degree)
+        matrix.preScale((if (horizontal) -1 else 1).toFloat(), (if (vertical) -1 else 1).toFloat())
+        val rotatedImg =
+            Bitmap.createBitmap(img, 0, 0, img.width, img.height, matrix, true)
+        img.recycle()
+        return rotatedImg
+    }
+
+    private fun rotateImage(img: Bitmap, degree: Float): Bitmap? {
+        val matrix = Matrix()
+        matrix.postRotate(degree)
+        val rotatedImg =
+            Bitmap.createBitmap(img, 0, 0, img.width, img.height, matrix, true)
+        img.recycle()
+        return rotatedImg
     }
 
     private fun flipImage(bitmap: Bitmap?, horizontal: Boolean, vertical: Boolean): Bitmap {
