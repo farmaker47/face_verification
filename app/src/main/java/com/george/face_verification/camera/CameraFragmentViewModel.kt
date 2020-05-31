@@ -99,6 +99,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Inputs outputs
         /*val inputTensorModel: Int = interpreter.getInputIndex("input_1")
         Log.e("INPUT_TENSOR", inputTensorModel.toString())*/
+
     }
 
     @Throws(IOException::class)
