@@ -1,7 +1,6 @@
 package com.george.face_verification.camera
 
 import android.app.Application
-import android.content.Context
 import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -19,6 +18,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.george.face_verification.MainActivity
+import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.vision.Frame
 import com.google.android.gms.vision.face.Face
 import com.google.android.gms.vision.face.FaceDetector
@@ -29,9 +30,14 @@ import org.koin.java.KoinJavaComponent.getKoin
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import java.io.*
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.util.*
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 
 class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
@@ -50,6 +56,16 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private var outputDirectory: File
 
     private lateinit var interpreter: Interpreter
+
+    /** Executor to run inference task in the background. */
+    private val executorService: ExecutorService = Executors.newCachedThreadPool()
+
+    private var inputImageWidth: Int = 0 // will be inferred from TF Lite model.
+    private var inputImageHeight: Int = 0 // will be inferred from TF Lite model.
+    private var modelInputSize: Int = 0 // will be inferred from TF Lite model.
+    private var outputShape: IntArray = intArrayOf(0) // will be inferred from TF Lite model.
+    var isInitialized = false
+        private set
 
     // Initialize the __ MutableLiveData
     init {
@@ -74,25 +90,35 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun initializeInterpreter(app: Application) = withContext(Dispatchers.IO) {
         // Load the TF Lite model from asset folder and initialize TF Lite Interpreter without NNAPI enabled.
         val assetManager = app.assets
-        val model = loadModelFile(assetManager, "face_recog.tflite")
+        val model = loadModelFile(assetManager, "face_recog_model_layer.tflite")
         val options = Interpreter.Options()
         options.setUseNNAPI(false)
         interpreter = Interpreter(model, options)
         // Reads type and shape of input and output tensors, respectively.
         val imageTensorIndex = 0
-        val imageShape: IntArray =
+        val inputShape: IntArray =
             interpreter.getInputTensor(imageTensorIndex).shape() // {1, length}
-        Log.e("INPUT_TENSOR_WHOLE", Arrays.toString(imageShape))
+        Log.e("INPUT_TENSOR_WHOLE", Arrays.toString(inputShape))
         val imageDataType: DataType =
             interpreter.getInputTensor(imageTensorIndex).dataType()
         Log.e("INPUT_DATA_TYPE", imageDataType.toString())
+
+        //modelInputSize indicates how many bytes of memory we should allocate to store the input for our TensorFlow Lite model.
+        //FLOAT_TYPE_SIZE indicates how many bytes our input data type will require. We use float32, so it is 4 bytes.
+        //PIXEL_SIZE indicates how many color channels there are in each pixel. Our input image is a colored image, so we have 3 color channel.
+        inputImageWidth = inputShape[1]
+        inputImageHeight = inputShape[2]
+        modelInputSize = FLOAT_TYPE_SIZE * inputImageWidth *
+                inputImageHeight * PIXEL_SIZE
+
         val probabilityTensorIndex = 0
-        val probabilityShape: IntArray =
+        outputShape =
             interpreter.getOutputTensor(probabilityTensorIndex).shape()// {1, NUM_CLASSES}
-        Log.e("OUTPUT_TENSOR_SHAPE", Arrays.toString(probabilityShape))
+        Log.e("OUTPUT_TENSOR_SHAPE", Arrays.toString(outputShape))
         val probabilityDataType: DataType =
             interpreter.getOutputTensor(probabilityTensorIndex).dataType()
         Log.e("OUTPUT_DATA_TYPE", probabilityDataType.toString())
+        isInitialized = true
         Log.e(TAG, "Initialized TFLite interpreter.")
 
 
@@ -215,7 +241,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         val frame: Frame = Frame.Builder().setBitmap(bitmap).build()
         // Use facedetector or detector object
         val faces: SparseArray<Face>? = faceDetector?.detect(frame)
-        Log.i("NUMBER_FACES", faces!!.size().toString())
+        Log.e("NUMBER_FACES", faces!!.size().toString())
 
         // For every face get coordinates and draw red rectangle if desired
         var x1 = 0
@@ -266,6 +292,10 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 Log.i("SAVE_IMAGE", e.message, e)
             }
+
+            // After all this procedure we pass our bitmap inside interpreter
+            classifyAsync(croppedFaceBitmap)
+
         }
 
 
@@ -326,9 +356,67 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         return Bitmap.createBitmap(bitmap!!, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
+    private fun classifyAsync(bitmap: Bitmap): Task<String> {
+        return Tasks.call(executorService, Callable { classify(bitmap) })
+    }
+
+    private fun classify(bitmap: Bitmap): String {
+        check(isInitialized) { "TF Lite Interpreter is not initialized yet." }
+
+        // TODO: Add code to run inference with TF Lite.
+        // Pre-processing: resize the input image to match the model input shape.
+        val resizedImage = Bitmap.createScaledBitmap(
+            bitmap,
+            inputImageWidth,
+            inputImageHeight,
+            true
+        )
+        val byteBuffer = convertBitmapToByteBuffer(resizedImage)
+
+        // Define an array to store the model output.
+        // Outputshape[0] = 64
+        val output = Array(1) { FloatArray(outputShape[1]) }
+
+        // Run inference with the input data.
+        interpreter.run(byteBuffer, output)
+
+        // Post-processing: find the digit that has the highest probability
+        // and return it a human-readable string.
+        val result = output[0]
+        Log.e("RESULT", result.contentToString())
+
+        val maxIndex = result.indices.maxBy { result[it] } ?: -1
+        return "Prediction Result: %d\nConfidence: %2f"
+            .format(maxIndex, result[maxIndex])
+    }
+
+    private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
+        //Pre-process the input: convert a Bitmap instance to a ByteBuffer instance
+        // containing the pixel values of all pixels in the input image.
+        // We use ByteBuffer because it is faster than a Kotlin native float multidimensional array.
+        val byteBuffer = ByteBuffer.allocateDirect(modelInputSize)
+        byteBuffer.order(ByteOrder.nativeOrder())
+
+        val pixels = IntArray(inputImageWidth * inputImageHeight)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+
+        for (pixelValue in pixels) {
+            val r = (pixelValue shr 16 and 0xFF)
+            val g = (pixelValue shr 8 and 0xFF)
+            val b = (pixelValue and 0xFF)
+
+            // Normalize pixel value to [0..1].
+            val normalizedPixelValue = (r + g + b) / 255.0F
+            byteBuffer.putFloat(normalizedPixelValue)
+        }
+
+        return byteBuffer
+    }
+
     companion object {
         private const val TAG = "MainActivityViewModel"
-        private const val OUTPUT_CLASSES_COUNT = 3
+        private const val OUTPUT_CLASSES_COUNT = 64
+        private const val FLOAT_TYPE_SIZE = 4
+        private const val PIXEL_SIZE = 3
     }
 }
-

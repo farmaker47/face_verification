@@ -90,7 +90,7 @@ dependencies {
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
 
     // TF Lite
-    implementation('org.tensorflow:tensorflow-lite:2.1.0')
+    implementation 'org.tensorflow:tensorflow-lite:2.1.0'
 
     // Koin for Kotlin
     implementation "org.koin:koin-core:$koin_version"
