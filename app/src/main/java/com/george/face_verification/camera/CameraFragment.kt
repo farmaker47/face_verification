@@ -157,7 +157,7 @@ class CameraFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         binding = FragmentCameraBinding.inflate(inflater)
-
+        binding.cameraViewModel = viewModel
 
 
         return binding.root

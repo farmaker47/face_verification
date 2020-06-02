@@ -4,6 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
+        <variable
+            name="camera_view_model"
+            type="com.george.face_verification.camera.CameraFragmentViewModel" />
 
     </data>
 

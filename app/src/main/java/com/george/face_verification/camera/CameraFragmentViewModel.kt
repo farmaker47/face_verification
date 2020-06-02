@@ -195,7 +195,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         Log.i("WIDTH_ORIGINAL", originalBitmap.width.toString())
         Log.i("HEIGHT_ORIGINAL", originalBitmap.height.toString())
-        Log.i("PATH_TO_URI", path)
+        Log.e("PATH_TO_URI", path)
 
         // Get specific path for EXIFINTERFACE
         val postLongStr: String = path.substring(7, path.length)
@@ -283,15 +283,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
                 )
 
             // Use this specific name for created face bitmap
-            val mypath = File(outputDirectory, "molvedo.jpg")
-            val fos: FileOutputStream?
-            try {
-                fos = FileOutputStream(mypath, false)
-                croppedFaceBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
-                fos.close()
-            } catch (e: Exception) {
-                Log.i("SAVE_IMAGE", e.message, e)
-            }
+            saveBitmapToPhone(croppedFaceBitmap)
 
             // After all this procedure we pass our bitmap inside interpreter
             classifyAsync(croppedFaceBitmap)
@@ -299,6 +291,18 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         }
 
 
+    }
+
+    private fun saveBitmapToPhone(croppedFaceBitmap: Bitmap) {
+        val mypath = File(outputDirectory, "molvedo_2.jpg")
+        val fos: FileOutputStream?
+        try {
+            fos = FileOutputStream(mypath, false)
+            croppedFaceBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
+            fos.close()
+        } catch (e: Exception) {
+            Log.i("SAVE_IMAGE", e.message, e)
+        }
     }
 
     // Modify orientation to help face detector
@@ -363,7 +367,6 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private fun classify(bitmap: Bitmap): String {
         check(isInitialized) { "TF Lite Interpreter is not initialized yet." }
 
-        // TODO: Add code to run inference with TF Lite.
         // Pre-processing: resize the input image to match the model input shape.
         val resizedImage = Bitmap.createScaledBitmap(
             bitmap,
@@ -371,10 +374,11 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             inputImageHeight,
             true
         )
+        saveResizedBitmapToPhone(resizedImage)
         val byteBuffer = convertBitmapToByteBuffer(resizedImage)
 
         // Define an array to store the model output.
-        // Outputshape[0] = 64
+        // Outputshape[1] = 64
         val output = Array(1) { FloatArray(outputShape[1]) }
 
         // Run inference with the input data.
@@ -385,13 +389,85 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         val result = output[0]
         Log.e("RESULT", result.contentToString())
 
+        // Max value of array
         val maxIndex = result.indices.maxBy { result[it] } ?: -1
+        val maxValue = result[maxIndex]
+        Log.e("MAX_VALUE", maxValue.toString())
+
+        // Divide generated array with max number to avoid large numbers
+        var arrayOfDividedNumbers: FloatArray = FloatArray(outputShape[1]) { 0F }
+        for ((index, number) in result.withIndex()){
+            arrayOfDividedNumbers[index] = number/maxValue
+        }
+        Log.e("DIVIDED_ARRAY",arrayOfDividedNumbers.contentToString())
+
+
+        /////////////////////////////////////////
+        ////////////////////////////////////////
+        // Second image
+        // file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg
+
+        val outPutSecondBitmap = uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg".toUri())
+        val resizedSecondImage = Bitmap.createScaledBitmap(
+            outPutSecondBitmap,
+            inputImageWidth,
+            inputImageHeight,
+            true
+        )
+        val byteBufferSecond = convertBitmapToByteBuffer(resizedSecondImage)
+
+        // Define an array to store the model output.
+        // Outputshape[1] = 64
+        val outputSecond = Array(1) { FloatArray(outputShape[1]) }
+
+        // Run inference with the input data.
+        interpreter.run(byteBufferSecond, outputSecond)
+
+        // Post-processing: find the digit that has the highest probability
+        // and return it a human-readable string.
+        val resultSecond = outputSecond[0]
+        Log.e("RESULT_Second", resultSecond.contentToString())
+
+        // Max value of array
+        //val maxIndexSecond = resultSecond.indices.maxBy { resultSecond[it] } ?: -1
+
+        // Divide generated array with max number to avoid large numbers
+        var arrayOfDividedNumbersSecond: FloatArray = FloatArray(outputShape[1]) { 0F }
+        for ((index, number) in resultSecond.withIndex()){
+            arrayOfDividedNumbersSecond[index] = number/maxValue
+        }
+        Log.e("DIVIDED_ARRAY_Second",arrayOfDividedNumbersSecond.contentToString())
+        // Find MSE of two arrays to find the loss between two images
+
+        var sum = 0.0
+        for (i in 0 until arrayOfDividedNumbers.size) {
+            val diff = arrayOfDividedNumbers[i] - arrayOfDividedNumbersSecond[i]
+            sum += diff * diff
+        }
+        val mse = sum / arrayOfDividedNumbers.size
+
+        Log.e("MSE_POSITIVE", mse.toString())
+
+
+
         return "Prediction Result: %d\nConfidence: %2f"
             .format(maxIndex, result[maxIndex])
     }
 
+    private fun saveResizedBitmapToPhone(croppedFaceBitmap: Bitmap) {
+        val mypath = File(outputDirectory, "molvedo_Resized.jpg")
+        val fos: FileOutputStream?
+        try {
+            fos = FileOutputStream(mypath, false)
+            croppedFaceBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
+            fos.close()
+        } catch (e: Exception) {
+            Log.i("SAVE_IMAGE", e.message, e)
+        }
+    }
+
     private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
-        //Pre-process the input: convert a Bitmap instance to a ByteBuffer instance
+        // Pre-process the input: convert a Bitmap instance to a ByteBuffer instance
         // containing the pixel values of all pixels in the input image.
         // We use ByteBuffer because it is faster than a Kotlin native float multidimensional array.
         val byteBuffer = ByteBuffer.allocateDirect(modelInputSize)
