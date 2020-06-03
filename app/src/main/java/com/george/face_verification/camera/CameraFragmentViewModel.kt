@@ -396,10 +396,10 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         // Divide generated array with max number to avoid large numbers
         var arrayOfDividedNumbers: FloatArray = FloatArray(outputShape[1]) { 0F }
-        for ((index, number) in result.withIndex()){
-            arrayOfDividedNumbers[index] = number/maxValue
+        for ((index, number) in result.withIndex()) {
+            arrayOfDividedNumbers[index] = number / maxValue
         }
-        Log.e("DIVIDED_ARRAY",arrayOfDividedNumbers.contentToString())
+        Log.e("DIVIDED_ARRAY", arrayOfDividedNumbers.contentToString())
 
 
         /////////////////////////////////////////
@@ -407,7 +407,8 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Second image
         // file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg
 
-        val outPutSecondBitmap = uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg".toUri())
+        val outPutSecondBitmap =
+            uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg".toUri())
         val resizedSecondImage = Bitmap.createScaledBitmap(
             outPutSecondBitmap,
             inputImageWidth,
@@ -428,25 +429,65 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         val resultSecond = outputSecond[0]
         Log.e("RESULT_Second", resultSecond.contentToString())
 
-        // Max value of array
-        //val maxIndexSecond = resultSecond.indices.maxBy { resultSecond[it] } ?: -1
+        // Divide generated array with max number to avoid large numbers
+        val arrayOfDividedNumbersSecond: FloatArray = FloatArray(outputShape[1]) { 0F }
+        for ((index, number) in resultSecond.withIndex()) {
+            arrayOfDividedNumbersSecond[index] = number / maxValue
+        }
+        Log.e("DIVIDED_ARRAY_Second", arrayOfDividedNumbersSecond.contentToString())
+
+        /////////////////////////////////////////
+        ////////////////////////////////////////
+        // Third image
+        // file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg
+
+        val outPutThirdBitmap =
+            uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo_3.jpg".toUri())
+        val resizedThirdImage = Bitmap.createScaledBitmap(
+            outPutThirdBitmap,
+            inputImageWidth,
+            inputImageHeight,
+            true
+        )
+        val byteBufferThird = convertBitmapToByteBuffer(resizedThirdImage)
+
+        // Define an array to store the model output.
+        // Outputshape[1] = 64
+        val outputThird = Array(1) { FloatArray(outputShape[1]) }
+
+        // Run inference with the input data.
+        interpreter.run(byteBufferThird, outputThird)
+
+        val resultThird = outputThird[0]
+        Log.e("RESULT_Third", resultThird.contentToString())
 
         // Divide generated array with max number to avoid large numbers
-        var arrayOfDividedNumbersSecond: FloatArray = FloatArray(outputShape[1]) { 0F }
-        for ((index, number) in resultSecond.withIndex()){
-            arrayOfDividedNumbersSecond[index] = number/maxValue
+        val arrayOfDividedNumbersThird = FloatArray(outputShape[1]) { 0F }
+        for ((index, number) in resultThird.withIndex()) {
+            arrayOfDividedNumbersThird[index] = number / maxValue
         }
-        Log.e("DIVIDED_ARRAY_Second",arrayOfDividedNumbersSecond.contentToString())
-        // Find MSE of two arrays to find the loss between two images
+        Log.e("DIVIDED_ARRAY_Third", arrayOfDividedNumbersThird.contentToString())
 
-        var sum = 0.0
+
+        // Find MSE of two arrays to find the loss between two images
+        var sum_Pos = 0.0
         for (i in 0 until arrayOfDividedNumbers.size) {
             val diff = arrayOfDividedNumbers[i] - arrayOfDividedNumbersSecond[i]
-            sum += diff * diff
+            sum_Pos += diff * diff
         }
-        val mse = sum / arrayOfDividedNumbers.size
+        val mse_Pos = sum_Pos / arrayOfDividedNumbers.size
 
-        Log.e("MSE_POSITIVE", mse.toString())
+        Log.e("MSE_POSITIVE", mse_Pos.toString())
+
+        // Find MSE of two arrays to find the loss between two images
+        var sum_Neg = 0.0
+        for (i in 0 until arrayOfDividedNumbers.size) {
+            val diff = arrayOfDividedNumbers[i] - arrayOfDividedNumbersThird[i]
+            sum_Neg += diff * diff
+        }
+        val mse_Neg = sum_Neg / arrayOfDividedNumbers.size
+
+        Log.e("MSE_NEGATIVE", mse_Neg.toString())
 
 
 
