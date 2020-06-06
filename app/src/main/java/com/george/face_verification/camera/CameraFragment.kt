@@ -23,6 +23,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
 import android.widget.ImageButton
+import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -158,6 +159,23 @@ class CameraFragment : Fragment() {
     ): View? {
         binding = FragmentCameraBinding.inflate(inflater)
         binding.cameraViewModel = viewModel
+        //binding.lifecycleOwner = this
+
+        viewModel.trueOrFalsePhoto.observe(viewLifecycleOwner, androidx.lifecycle.Observer { trueOrFalse ->
+            when (trueOrFalse) {
+                // George
+                true -> {
+                    Toast.makeText(context,"Hi George!", Toast.LENGTH_LONG).show()
+                    Log.e("PHOTO", "George")
+                }
+
+                // Not George
+                else -> {
+                    Toast.makeText(context,"Who are you??",Toast.LENGTH_LONG).show()
+                    Log.e("PHOTO", "Not George")
+                }
+            }
+        })
 
 
         return binding.root

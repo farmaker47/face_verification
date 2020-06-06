@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.util.SparseArray
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
@@ -48,13 +49,18 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private val selectedPhotoPath: LiveData<String>
         get() = _selectedPhotoPath
 
+    var _trueOrFalsePhoto = MutableLiveData<Boolean>()
+
+    // The external LiveData for the __
+    val trueOrFalsePhoto: LiveData<Boolean>
+        get() = _trueOrFalsePhoto
+
     private var pathOfPhoto: String?
     private lateinit var originalBitmap: Bitmap
     private var rotatedBitmap: Bitmap? = null
     private val context = getApplication<Application>().applicationContext
     private var faceDetector: FaceDetector? = null
     private var outputDirectory: File
-
     private lateinit var interpreter: Interpreter
 
     /** Executor to run inference task in the background. */
@@ -83,6 +89,8 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             MainActivity.getOutputDirectory(
                 context
             )
+
+        _trueOrFalsePhoto.value = false
     }
 
     // Initialize interpreter
@@ -114,7 +122,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         val probabilityTensorIndex = 0
         outputShape =
             interpreter.getOutputTensor(probabilityTensorIndex).shape()// {1, NUM_CLASSES}
-        Log.e("OUTPUT_TENSOR_SHAPE", Arrays.toString(outputShape))
+        Log.e("OUTPUT_TENSOR_SHAPE", outputShape.contentToString())
         val probabilityDataType: DataType =
             interpreter.getOutputTensor(probabilityTensorIndex).dataType()
         Log.e("OUTPUT_DATA_TYPE", probabilityDataType.toString())
@@ -286,7 +294,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             saveBitmapToPhone(croppedFaceBitmap)
 
             // After all this procedure we pass our bitmap inside interpreter
-            classifyAsync(croppedFaceBitmap)
+            classify(croppedFaceBitmap)
 
         }
 
@@ -395,7 +403,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         Log.e("MAX_VALUE", maxValue.toString())
 
         // Divide generated array with max number to avoid large numbers
-        var arrayOfDividedNumbers: FloatArray = FloatArray(outputShape[1]) { 0F }
+        val arrayOfDividedNumbers: FloatArray = FloatArray(outputShape[1]) { 0F }
         for ((index, number) in result.withIndex()) {
             arrayOfDividedNumbers[index] = number / maxValue
         }
@@ -423,6 +431,9 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         // Run inference with the input data.
         interpreter.run(byteBufferSecond, outputSecond)
+
+        /*interpreter.getOutputTensor(-1)
+        interpreter.*/
 
         // Post-processing: find the digit that has the highest probability
         // and return it a human-readable string.
@@ -488,6 +499,25 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         val mse_Neg = sum_Neg / arrayOfDividedNumbers.size
 
         Log.e("MSE_NEGATIVE", mse_Neg.toString())
+
+        //AlertDialog.Builder(context).setMessage("Hi George!").show()
+        //Toast.makeText(context, "Hi George!", Toast.LENGTH_LONG).show()
+        //_trueOrFalsePhoto.postValue(true)
+        if (mse_Pos < mse_Neg) {
+            Log.e("VIEW_MODEL", "George_Yes")
+            //Toast.makeText(context, "Hi George!", Toast.LENGTH_LONG).show()
+            //AlertDialog.Builder(context).setMessage("Hi George!").show()
+            _trueOrFalsePhoto.postValue(true)
+            //_trueOrFalsePhoto.value = true
+
+        } else {
+            Log.e("VIEW_MODEL", "George_No")
+            //Toast.makeText(context, "Who are you??", Toast.LENGTH_LONG).show()
+            //AlertDialog.Builder(context).setMessage("Who are you??").show()
+            _trueOrFalsePhoto.postValue(false)
+            //_trueOrFalsePhoto.value = false
+
+        }
 
 
 
