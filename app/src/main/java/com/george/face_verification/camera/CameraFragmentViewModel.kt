@@ -1,6 +1,7 @@
 package com.george.face_verification.camera
 
 import android.app.Application
+import android.content.Context
 import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -90,7 +91,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
                 context
             )
 
-        _trueOrFalsePhoto.value = false
+        //_trueOrFalsePhoto.value = false
     }
 
     // Initialize interpreter
@@ -146,9 +147,9 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
     }
 
-    /*//originalBitmap = getBitmapFromAsset(app, "george_black.jpg")
+    //originalBitmap = getBitmapFromAsset(app, "george_black.jpg")
     private fun getBitmapFromAsset(context: Context, path: String): Bitmap =
-        context.assets.open(path).use { BitmapFactory.decodeStream(it) }*/
+        context.assets.open(path).use { BitmapFactory.decodeStream(it) }
 
     // Uri to bitmap
     private fun uriToBitmap(selectedFileUri: Uri): Bitmap {
@@ -382,7 +383,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             inputImageHeight,
             true
         )
-        saveResizedBitmapToPhone(resizedImage)
+        //saveResizedBitmapToPhone(resizedImage)
         val byteBuffer = convertBitmapToByteBuffer(resizedImage)
 
         // Define an array to store the model output.
@@ -452,14 +453,15 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Third image
         // file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg
 
-        val outPutThirdBitmap =
-            uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo_3.jpg".toUri())
+        val outPutThirdBitmap = getBitmapFromAsset(context, "generated_fake.JPG")
+        //uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo_3.jpg".toUri())
         val resizedThirdImage = Bitmap.createScaledBitmap(
             outPutThirdBitmap,
             inputImageWidth,
             inputImageHeight,
             true
         )
+        saveResizedBitmapToPhone(resizedThirdImage)
         val byteBufferThird = convertBitmapToByteBuffer(resizedThirdImage)
 
         // Define an array to store the model output.
