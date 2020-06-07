@@ -40,6 +40,7 @@ import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.collections.ArrayList
 
 
 class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
@@ -62,6 +63,8 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private val context = getApplication<Application>().applicationContext
     private var faceDetector: FaceDetector? = null
     private var outputDirectory: File
+    private var outputDirectoryTenPhotos: File
+    private var listOfPhotos: Array<File>
     private lateinit var interpreter: Interpreter
 
     /** Executor to run inference task in the background. */
@@ -90,6 +93,12 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             MainActivity.getOutputDirectory(
                 context
             )
+        outputDirectoryTenPhotos =
+            MainActivity.getOutputDirectoryContentTenPictures(
+                context
+            )
+        listOfPhotos = outputDirectoryTenPhotos.listFiles()
+        Log.e("LIST_OF_PHOTOS", listOfPhotos.contentToString())
 
         //_trueOrFalsePhoto.value = false
     }
@@ -416,8 +425,12 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Second image
         // file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg
 
+        val photo = listOfPhotos[(0..9).random()]
+        Log.e("PHOTO_RANDOM", photo.toString())
         val outPutSecondBitmap =
-            uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg".toUri())
+        //uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg".toUri())
+        //uriToBitmap(("file://" + listOfPhotos[0].toString()).toUri())
+        uriToBitmap(photo.toUri())
         val resizedSecondImage = Bitmap.createScaledBitmap(
             outPutSecondBitmap,
             inputImageWidth,

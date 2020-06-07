@@ -9,6 +9,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Toast
 import com.george.face_verification.databinding.ActivityMainBinding
 import com.george.face_verification.utils.FLAGS_FULLSCREEN
 
@@ -75,6 +76,10 @@ class MainActivity : AppCompatActivity() {
             }
             return if (mediaDir != null && mediaDir.exists())
                 mediaDir else appContext.filesDir
+        }
+
+        fun toastNumberMessages(numberOfPhotos: Int, context: Context?) {
+            Toast.makeText(context, "$numberOfPhotos", Toast.LENGTH_SHORT).show()
         }
     }
 

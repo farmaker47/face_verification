@@ -489,11 +489,11 @@ class CameraFragment : Fragment() {
 
                 // Create output options object which contains file + metadata
                 val outputOptions: ImageCapture.OutputFileOptions
-                if (arePicturesSaved){
+                if (arePicturesSaved) {
                     outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile)
                         .setMetadata(metadata)
                         .build()
-                }else{
+                } else {
                     outputOptions = ImageCapture.OutputFileOptions.Builder(photoFileTen)
                         .setMetadata(metadata)
                         .build()
@@ -518,11 +518,12 @@ class CameraFragment : Fragment() {
                                 viewModel.setPathOfLatestPhoto(savedUri.toString())
                             } else {
                                 //takeTenPhotos()
-                                if (numberOfPhotos < 10) {
+                                if (numberOfPhotos < 9) {
                                     arePicturesSaved = false
                                     savedUri = output.savedUri ?: Uri.fromFile(photoFileTen)
                                     numberOfPhotos += 1
                                     Log.e("NUMBER", numberOfPhotos.toString())
+                                    //MainActivity.toastNumberMessages(numberOfPhotos, context)
                                 } else {
                                     arePicturesSaved = true
                                     activity?.finish()
