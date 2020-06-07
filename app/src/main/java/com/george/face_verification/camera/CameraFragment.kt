@@ -14,6 +14,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Size
@@ -75,6 +76,7 @@ class CameraFragment : Fragment() {
     private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: PreviewView
     private lateinit var outputDirectory: File
+    private lateinit var outputDirectoryTenPictures: File
     private lateinit var broadcastManager: LocalBroadcastManager
     private lateinit var binding: FragmentCameraBinding
 
@@ -88,6 +90,8 @@ class CameraFragment : Fragment() {
 
     private val viewModel: CameraFragmentViewModel by viewModel()
     private lateinit var savedUri: Uri
+    private var arePicturesSaved: Boolean = false
+    private var numberOfPhotos = 0
 
     private val displayManager by lazy {
         requireContext().getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
@@ -139,6 +143,59 @@ class CameraFragment : Fragment() {
                 R.id.action_camera_to_permissions
             )
         }
+
+        outputDirectory =
+            MainActivity.getOutputDirectory(
+                requireContext()
+            )
+
+        val mediaDir = File(
+            "/storage/emulated/0/Android/media/com.george.face_verification/",
+            requireContext().resources.getString(R.string.ten_pictures)
+        )
+        if (mediaDir != null && mediaDir.exists()) {
+            // Determine the output directory
+            // This time the directory of the 10 pictures is created
+            arePicturesSaved = true
+            outputDirectory =
+                MainActivity.getOutputDirectory(
+                    requireContext()
+                )
+            outputDirectoryTenPictures =
+                MainActivity.getOutputDirectoryContentTenPictures(
+                    requireContext()
+                )
+        } else {
+
+            arePicturesSaved = false
+            Log.e("NOT", "false")
+            outputDirectoryTenPictures =
+                MainActivity.getOutputDirectoryContentTenPictures(
+                    requireContext()
+                )
+
+            //takeTenPhotos()
+        }
+    }
+
+    private fun takeTenPhotos() {
+        val shutter = container
+            .findViewById<ImageButton>(R.id.camera_capture_button)
+        for (i in 0..9) {
+            /*val handler = Handler()
+            handler.postDelayed(
+                {
+
+                },
+                700
+            )*/
+            shutter.simulateClick()
+
+            // Flash
+            flashWhite()
+
+        }
+
     }
 
     override fun onDestroyView() {
@@ -161,21 +218,23 @@ class CameraFragment : Fragment() {
         binding.cameraViewModel = viewModel
         //binding.lifecycleOwner = this
 
-        viewModel.trueOrFalsePhoto.observe(viewLifecycleOwner, androidx.lifecycle.Observer { trueOrFalse ->
-            when (trueOrFalse) {
-                // George
-                true -> {
-                    Toast.makeText(context,"Hi George!", Toast.LENGTH_LONG).show()
-                    Log.e("PHOTO", "George")
-                }
+        viewModel.trueOrFalsePhoto.observe(
+            viewLifecycleOwner,
+            androidx.lifecycle.Observer { trueOrFalse ->
+                when (trueOrFalse) {
+                    // George
+                    true -> {
+                        Toast.makeText(context, "Hi George!", Toast.LENGTH_LONG).show()
+                        Log.e("PHOTO", "George")
+                    }
 
-                // Not George
-                else -> {
-                    Toast.makeText(context,"Who are you??",Toast.LENGTH_LONG).show()
-                    Log.e("PHOTO", "Not George")
+                    // Not George
+                    else -> {
+                        Toast.makeText(context, "Who are you??", Toast.LENGTH_LONG).show()
+                        Log.e("PHOTO", "Not George")
+                    }
                 }
-            }
-        })
+            })
 
 
         return binding.root
@@ -218,12 +277,6 @@ class CameraFragment : Fragment() {
         // Every time the orientation of device changes, update rotation for use cases
         displayManager.registerDisplayListener(displayListener, null)
 
-        // Determine the output directory
-        outputDirectory =
-            MainActivity.getOutputDirectory(
-                requireContext()
-            )
-
         // Wait for the views to be properly laid out
         binding.viewFinder.post {
 
@@ -236,7 +289,9 @@ class CameraFragment : Fragment() {
             // Set up the camera and its use cases
             setUpCamera()
         }
+
     }
+
 
     /**
      * Inflate camera controls and update the UI manually upon config changes to avoid removing
@@ -265,9 +320,10 @@ class CameraFragment : Fragment() {
             cameraProvider = cameraProviderFuture.get()
 
             // Select lensFacing depending on the available cameras
+            // Depend on the order phone selects at first installment the camera that is above
             lensFacing = when {
-                hasBackCamera() -> CameraSelector.LENS_FACING_BACK
                 hasFrontCamera() -> CameraSelector.LENS_FACING_FRONT
+                hasBackCamera() -> CameraSelector.LENS_FACING_BACK
                 else -> throw IllegalStateException("Back and front camera are unavailable")
             }
 
@@ -400,6 +456,8 @@ class CameraFragment : Fragment() {
                 //Log.e("URI", Uri.fromFile(it).toString())
                 setGalleryThumbnail(Uri.fromFile(it))
             }
+
+            Log.e("LIST_FILES", outputDirectory.listFiles().contentToString())
         }
 
         // Listener for button used to capture photo
@@ -415,6 +473,12 @@ class CameraFragment : Fragment() {
                         FILENAME,
                         PHOTO_EXTENSION
                     )
+                val photoFileTen =
+                    createFile(
+                        outputDirectoryTenPictures,
+                        FILENAME,
+                        PHOTO_EXTENSION
+                    )
 
                 // Setup image capture metadata
                 val metadata = ImageCapture.Metadata().apply {
@@ -424,9 +488,17 @@ class CameraFragment : Fragment() {
                 }
 
                 // Create output options object which contains file + metadata
-                val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile)
-                    .setMetadata(metadata)
-                    .build()
+                val outputOptions: ImageCapture.OutputFileOptions
+                if (arePicturesSaved){
+                    outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile)
+                        .setMetadata(metadata)
+                        .build()
+                }else{
+                    outputOptions = ImageCapture.OutputFileOptions.Builder(photoFileTen)
+                        .setMetadata(metadata)
+                        .build()
+                }
+
 
                 // Setup image capture listener which is triggered after photo has been taken
                 imageCapture.takePicture(
@@ -436,15 +508,28 @@ class CameraFragment : Fragment() {
                         }
 
                         override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                            savedUri = output.savedUri ?: Uri.fromFile(photoFile)
-                            Log.d(TAG, "Photo capture succeeded: $savedUri")
-                            getKoin().setProperty("pathInfo", savedUri.toString())
-                            viewModel.setPathOfLatestPhoto(savedUri.toString())
-                            /*withContext(Dispatchers.Main) {
-                                // call to UI thread
-                                _selectedPhotoPath.value = path
-                            }*/
 
+                            if (arePicturesSaved) {
+                                savedUri = output.savedUri ?: Uri.fromFile(photoFile)
+                                Log.d(TAG, "Photo capture succeeded: $savedUri")
+                                getKoin().setProperty("pathInfo", savedUri.toString())
+
+                                // Call method of viewmodel to set the path of the photo taken
+                                viewModel.setPathOfLatestPhoto(savedUri.toString())
+                            } else {
+                                //takeTenPhotos()
+                                if (numberOfPhotos < 10) {
+                                    arePicturesSaved = false
+                                    savedUri = output.savedUri ?: Uri.fromFile(photoFileTen)
+                                    numberOfPhotos += 1
+                                    Log.e("NUMBER", numberOfPhotos.toString())
+                                } else {
+                                    arePicturesSaved = true
+                                    activity?.finish()
+                                }
+
+                                Log.d(TAG, "Photo capture succeeded: $savedUri")
+                            }
 
                             // We can only change the foreground Drawable using API level 23+ API
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -477,16 +562,7 @@ class CameraFragment : Fragment() {
                     })
 
                 // We can only change the foreground Drawable using API level 23+ API
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-
-                    // Display flash animation to indicate that photo was captured
-                    container.postDelayed({
-                        container.foreground = ColorDrawable(Color.WHITE)
-                        container.postDelayed(
-                            { container.foreground = null }, ANIMATION_FAST_MILLIS
-                        )
-                    }, ANIMATION_SLOW_MILLIS)
-                }
+                flashWhite()
             }
         }
 
@@ -516,6 +592,19 @@ class CameraFragment : Fragment() {
                 ).navigate(CameraFragmentDirections
                     .actionCameraToGallery(outputDirectory.absolutePath))
             }*/
+        }
+    }
+
+    private fun flashWhite() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+
+            // Display flash animation to indicate that photo was captured
+            container.postDelayed({
+                container.foreground = ColorDrawable(Color.WHITE)
+                container.postDelayed(
+                    { container.foreground = null }, ANIMATION_FAST_MILLIS
+                )
+            }, ANIMATION_SLOW_MILLIS)
         }
     }
 

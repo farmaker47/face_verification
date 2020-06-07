@@ -27,7 +27,7 @@ class MainActivity : AppCompatActivity() {
 
         fab.setOnClickListener { view ->
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                    .setAction("Action", null).show()
+                .setAction("Action", null).show()
         }
     }
 
@@ -57,11 +57,22 @@ class MainActivity : AppCompatActivity() {
         const val KEY_EVENT_ACTION = "key_event_action"
         const val KEY_EVENT_EXTRA = "key_event_extra"
         private const val IMMERSIVE_FLAG_TIMEOUT = 500L
+
         /** Use external media if it is available, our app's file directory otherwise */
         fun getOutputDirectory(context: Context): File {
             val appContext = context.applicationContext
             val mediaDir = context.externalMediaDirs.firstOrNull()?.let {
-                File(it, appContext.resources.getString(R.string.app_name)).apply { mkdirs() } }
+                File(it, appContext.resources.getString(R.string.app_name)).apply { mkdirs() }
+            }
+            return if (mediaDir != null && mediaDir.exists())
+                mediaDir else appContext.filesDir
+        }
+
+        fun getOutputDirectoryContentTenPictures(context: Context): File {
+            val appContext = context.applicationContext
+            val mediaDir = context.externalMediaDirs.firstOrNull()?.let {
+                File(it, appContext.resources.getString(R.string.ten_pictures)).apply { mkdirs() }
+            }
             return if (mediaDir != null && mediaDir.exists())
                 mediaDir else appContext.filesDir
         }
