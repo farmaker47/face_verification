@@ -540,7 +540,6 @@ class CameraFragment : Fragment() {
                                 if (numberOfPhotos < 9) {
                                     arePicturesSaved = false
                                     savedUri = output.savedUri ?: Uri.fromFile(photoFileTen)
-                                    numberOfPhotos += 1
                                     Log.e("NUMBER", numberOfPhotos.toString())
                                     //MainActivity.toastNumberMessages(numberOfPhotos, context)
                                     val intent = Intent(MainActivity.KEY_EVENT_ACTION).apply {
@@ -550,6 +549,7 @@ class CameraFragment : Fragment() {
                                     }
                                     LocalBroadcastManager.getInstance(requireContext())
                                         .sendBroadcast(intent)
+                                    numberOfPhotos += 1
                                 } else {
                                     arePicturesSaved = true
                                     val intent = Intent(MainActivity.KEY_EVENT_ACTION).apply {

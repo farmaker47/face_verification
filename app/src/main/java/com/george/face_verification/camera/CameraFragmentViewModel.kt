@@ -57,6 +57,8 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private var pathOfPhoto: String?
     private lateinit var originalBitmap: Bitmap
     private var rotatedBitmap: Bitmap? = null
+    private var rotatedBitmapSecondOutput: Bitmap? = null
+        //Bitmap.createBitmap(0, 0, Bitmap.Config.ARGB_8888)
     private val context = getApplication<Application>().applicationContext
     private var faceDetector: FaceDetector? = null
     private var outputDirectory: File
@@ -427,18 +429,26 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         val photo = listOfPhotos!![(0..9).random()]
         Log.e("PHOTO_RANDOM", photo.toString())
+
         val outPutSecondBitmap =
         //uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg".toUri())
-        //uriToBitmap(("file://" + listOfPhotos[0].toString()).toUri())
-        uriToBitmap(photo.toUri())
-        val resizedSecondImage = Bitmap.createScaledBitmap(
-            outPutSecondBitmap,
-            inputImageWidth,
-            inputImageHeight,
-            true
-        )
-        saveResizedBitmapToPhone(resizedSecondImage, "molvedo_second.jpg")
-        val byteBufferSecond = convertBitmapToByteBuffer(resizedSecondImage)
+            //uriToBitmap(("file://" + listOfPhotos[0].toString()).toUri())
+            uriToBitmap(photo.toUri())
+
+        // ExifInterface wants uri starting with /storage.. so we truncate string path
+        // Also we modify orientation so Face detector gets faces
+        rotatedBitmapSecondOutput = modifyOrientation(outPutSecondBitmap, photo.toString())
+
+        val resizedSecondImage = rotatedBitmapSecondOutput?.let {
+            Bitmap.createScaledBitmap(
+                it,
+                inputImageWidth,
+                inputImageHeight,
+                true
+            )
+        }
+        saveResizedBitmapToPhoneNull(resizedSecondImage, "molvedo_second.jpg")
+        val byteBufferSecond = convertBitmapToByteBufferNull(resizedSecondImage)
 
         // Define an array to store the model output.
         // Outputshape[1] = 64
@@ -536,7 +546,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         // Delete taken picture
-        val file = File(pathOfPhoto)
+        val file = File(pathOfPhoto!!.substring(7, pathOfPhoto!!.length))
         file.delete()
 
 
@@ -544,12 +554,24 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             .format(maxIndex, result[maxIndex])
     }
 
-    private fun saveResizedBitmapToPhone(croppedFaceBitmap: Bitmap, name:String) {
+    private fun saveResizedBitmapToPhone(croppedFaceBitmap: Bitmap, name: String) {
         val mypath = File(outputDirectory, name)
         val fos: FileOutputStream?
         try {
             fos = FileOutputStream(mypath, false)
             croppedFaceBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
+            fos.close()
+        } catch (e: Exception) {
+            Log.i("SAVE_IMAGE", e.message, e)
+        }
+    }
+
+    private fun saveResizedBitmapToPhoneNull(croppedFaceBitmap: Bitmap?, name: String) {
+        val mypath = File(outputDirectory, name)
+        val fos: FileOutputStream?
+        try {
+            fos = FileOutputStream(mypath, false)
+            croppedFaceBitmap?.compress(Bitmap.CompressFormat.JPEG, 100, fos)
             fos.close()
         } catch (e: Exception) {
             Log.i("SAVE_IMAGE", e.message, e)
@@ -565,6 +587,29 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         val pixels = IntArray(inputImageWidth * inputImageHeight)
         bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+
+        for (pixelValue in pixels) {
+            val r = (pixelValue shr 16 and 0xFF)
+            val g = (pixelValue shr 8 and 0xFF)
+            val b = (pixelValue and 0xFF)
+
+            // Normalize pixel value to [0..1].
+            val normalizedPixelValue = (r + g + b) / 255.0F
+            byteBuffer.putFloat(normalizedPixelValue)
+        }
+
+        return byteBuffer
+    }
+
+    private fun convertBitmapToByteBufferNull(bitmap: Bitmap?): ByteBuffer {
+        // Pre-process the input: convert a Bitmap instance to a ByteBuffer instance
+        // containing the pixel values of all pixels in the input image.
+        // We use ByteBuffer because it is faster than a Kotlin native float multidimensional array.
+        val byteBuffer = ByteBuffer.allocateDirect(modelInputSize)
+        byteBuffer.order(ByteOrder.nativeOrder())
+
+        val pixels = IntArray(inputImageWidth * inputImageHeight)
+        bitmap?.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
 
         for (pixelValue in pixels) {
             val r = (pixelValue shr 16 and 0xFF)
