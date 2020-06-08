@@ -57,6 +57,8 @@ class MainActivity : AppCompatActivity() {
 
         const val KEY_EVENT_ACTION = "key_event_action"
         const val KEY_EVENT_EXTRA = "key_event_extra"
+        const val EVENT_TOAST = "event_toast"
+        const val KEY_TOAST = "key_toast"
         private const val IMMERSIVE_FLAG_TIMEOUT = 500L
 
         /** Use external media if it is available, our app's file directory otherwise */

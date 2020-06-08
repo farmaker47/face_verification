@@ -102,6 +102,7 @@ class CameraFragment : Fragment() {
 
     /** Volume down button receiver used to trigger shutter */
     private val volumeDownReceiver = object : BroadcastReceiver() {
+
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.getIntExtra(MainActivity.KEY_EVENT_EXTRA, KeyEvent.KEYCODE_UNKNOWN)) {
                 // When the volume down button is pressed, simulate a shutter button click
@@ -110,6 +111,17 @@ class CameraFragment : Fragment() {
                         .findViewById<ImageButton>(R.id.camera_capture_button)
                     shutter.simulateClick()
                 }
+                1477 -> Toast.makeText(context, "Pictures are saved!", Toast.LENGTH_LONG).show()
+                0 -> Toast.makeText(context, "Picture number: 1", Toast.LENGTH_SHORT).show()
+                1 -> Toast.makeText(context, "Picture number: 2", Toast.LENGTH_SHORT).show()
+                2 -> Toast.makeText(context, "Picture number: 3", Toast.LENGTH_SHORT).show()
+                3 -> Toast.makeText(context, "Picture number: 4", Toast.LENGTH_SHORT).show()
+                4 -> Toast.makeText(context, "Picture number: 5", Toast.LENGTH_SHORT).show()
+                5 -> Toast.makeText(context, "Picture number: 6", Toast.LENGTH_SHORT).show()
+                6 -> Toast.makeText(context, "Picture number: 7", Toast.LENGTH_SHORT).show()
+                7 -> Toast.makeText(context, "Picture number: 8", Toast.LENGTH_SHORT).show()
+                8 -> Toast.makeText(context, "Picture number: 9", Toast.LENGTH_SHORT).show()
+                9 -> Toast.makeText(context, "Picture number: 10", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -156,6 +168,12 @@ class CameraFragment : Fragment() {
         if (mediaDir != null && mediaDir.exists()) {
             // Determine the output directory
             // This time the directory of the 10 pictures is created
+            Log.e("DETERMINED", "TRUE")
+            Toast.makeText(
+                context,
+                "Take a picture of yourself for recognition!",
+                Toast.LENGTH_LONG
+            ).show()
             arePicturesSaved = true
             outputDirectory =
                 MainActivity.getOutputDirectory(
@@ -169,6 +187,7 @@ class CameraFragment : Fragment() {
 
             arePicturesSaved = false
             Log.e("NOT", "false")
+            Toast.makeText(context, "First take 10 pictures of yourself!", Toast.LENGTH_LONG).show()
             outputDirectoryTenPictures =
                 MainActivity.getOutputDirectoryContentTenPictures(
                     requireContext()
@@ -524,8 +543,22 @@ class CameraFragment : Fragment() {
                                     numberOfPhotos += 1
                                     Log.e("NUMBER", numberOfPhotos.toString())
                                     //MainActivity.toastNumberMessages(numberOfPhotos, context)
+                                    val intent = Intent(MainActivity.KEY_EVENT_ACTION).apply {
+                                        putExtra(
+                                            MainActivity.KEY_EVENT_EXTRA, numberOfPhotos
+                                        )
+                                    }
+                                    LocalBroadcastManager.getInstance(requireContext())
+                                        .sendBroadcast(intent)
                                 } else {
                                     arePicturesSaved = true
+                                    val intent = Intent(MainActivity.KEY_EVENT_ACTION).apply {
+                                        putExtra(
+                                            MainActivity.KEY_EVENT_EXTRA, 1477
+                                        )
+                                    }
+                                    LocalBroadcastManager.getInstance(requireContext())
+                                        .sendBroadcast(intent)
                                     activity?.finish()
                                 }
 

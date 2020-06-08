@@ -11,7 +11,6 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.util.SparseArray
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
@@ -28,7 +27,6 @@ import com.google.android.gms.vision.face.FaceDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.java.KoinJavaComponent.getKoin
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import java.io.*
@@ -40,7 +38,6 @@ import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.collections.ArrayList
 
 
 class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
@@ -63,8 +60,8 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private val context = getApplication<Application>().applicationContext
     private var faceDetector: FaceDetector? = null
     private var outputDirectory: File
-    private var outputDirectoryTenPhotos: File
-    private var listOfPhotos: Array<File>
+    private var outputDirectoryTenPhotos: File? = null
+    private var listOfPhotos: Array<File>? = null
     private lateinit var interpreter: Interpreter
 
     /** Executor to run inference task in the background. */
@@ -93,12 +90,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             MainActivity.getOutputDirectory(
                 context
             )
-        outputDirectoryTenPhotos =
-            MainActivity.getOutputDirectoryContentTenPictures(
-                context
-            )
-        listOfPhotos = outputDirectoryTenPhotos.listFiles()
-        Log.e("LIST_OF_PHOTOS", listOfPhotos.contentToString())
+
 
         //_trueOrFalsePhoto.value = false
     }
@@ -206,8 +198,16 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     // This is called from Camera fragment to set the path of latest photo taken
     fun setPathOfLatestPhoto(path: String) {
 
+        outputDirectoryTenPhotos =
+            MainActivity.getOutputDirectoryContentTenPictures(
+                context
+            )
+        listOfPhotos = outputDirectoryTenPhotos?.listFiles()
+        Log.e("LIST_OF_PHOTOS", listOfPhotos?.contentToString())
+
         // If you use Koin injection
-        pathOfPhoto = getKoin().getProperty("pathInfo")
+        //pathOfPhoto = getKoin().getProperty("pathInfo")
+        pathOfPhoto = path
         // Retrieve original bitmap
         originalBitmap = uriToBitmap(path.toUri())
 
@@ -301,7 +301,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
                 )
 
             // Use this specific name for created face bitmap
-            saveBitmapToPhone(croppedFaceBitmap)
+            //saveBitmapToPhone(croppedFaceBitmap)
 
             // After all this procedure we pass our bitmap inside interpreter
             classify(croppedFaceBitmap)
@@ -392,7 +392,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             inputImageHeight,
             true
         )
-        //saveResizedBitmapToPhone(resizedImage)
+        saveResizedBitmapToPhone(resizedImage, "molvedo_first.jpg")
         val byteBuffer = convertBitmapToByteBuffer(resizedImage)
 
         // Define an array to store the model output.
@@ -425,7 +425,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Second image
         // file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg
 
-        val photo = listOfPhotos[(0..9).random()]
+        val photo = listOfPhotos!![(0..9).random()]
         Log.e("PHOTO_RANDOM", photo.toString())
         val outPutSecondBitmap =
         //uriToBitmap("file:///storage/emulated/0/Android/media/com.george.face_verification/face_verification/molvedo.jpg".toUri())
@@ -437,6 +437,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             inputImageHeight,
             true
         )
+        saveResizedBitmapToPhone(resizedSecondImage, "molvedo_second.jpg")
         val byteBufferSecond = convertBitmapToByteBuffer(resizedSecondImage)
 
         // Define an array to store the model output.
@@ -455,7 +456,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         Log.e("RESULT_Second", resultSecond.contentToString())
 
         // Divide generated array with max number to avoid large numbers
-        val arrayOfDividedNumbersSecond: FloatArray = FloatArray(outputShape[1]) { 0F }
+        val arrayOfDividedNumbersSecond = FloatArray(outputShape[1]) { 0F }
         for ((index, number) in resultSecond.withIndex()) {
             arrayOfDividedNumbersSecond[index] = number / maxValue
         }
@@ -474,7 +475,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             inputImageHeight,
             true
         )
-        saveResizedBitmapToPhone(resizedThirdImage)
+        saveResizedBitmapToPhone(resizedThirdImage, "molvedo_third.jpg")
         val byteBufferThird = convertBitmapToByteBuffer(resizedThirdImage)
 
         // Define an array to store the model output.
@@ -534,14 +535,17 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         }
 
+        // Delete taken picture
+        val file = File(pathOfPhoto)
+        file.delete()
 
 
         return "Prediction Result: %d\nConfidence: %2f"
             .format(maxIndex, result[maxIndex])
     }
 
-    private fun saveResizedBitmapToPhone(croppedFaceBitmap: Bitmap) {
-        val mypath = File(outputDirectory, "molvedo_Resized.jpg")
+    private fun saveResizedBitmapToPhone(croppedFaceBitmap: Bitmap, name:String) {
+        val mypath = File(outputDirectory, name)
         val fos: FileOutputStream?
         try {
             fos = FileOutputStream(mypath, false)
