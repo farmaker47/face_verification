@@ -416,7 +416,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Divide generated array with max number to avoid large numbers
         val arrayOfDividedNumbers: FloatArray = FloatArray(outputShape[1]) { 0F }
         for ((index, number) in result.withIndex()) {
-            arrayOfDividedNumbers[index] = number / maxValue
+            arrayOfDividedNumbers[index] = number // maxValue
         }
         Log.e("DIVIDED_ARRAY", arrayOfDividedNumbers.contentToString())
 
@@ -467,7 +467,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Divide generated array with max number to avoid large numbers
         val arrayOfDividedNumbersSecond = FloatArray(outputShape[1]) { 0F }
         for ((index, number) in resultSecond.withIndex()) {
-            arrayOfDividedNumbersSecond[index] = number / maxValue
+            arrayOfDividedNumbersSecond[index] = number // maxValue
         }
         Log.e("DIVIDED_ARRAY_Second", arrayOfDividedNumbersSecond.contentToString())
 
@@ -500,7 +500,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         // Divide generated array with max number to avoid large numbers
         val arrayOfDividedNumbersThird = FloatArray(outputShape[1]) { 0F }
         for ((index, number) in resultThird.withIndex()) {
-            arrayOfDividedNumbersThird[index] = number / maxValue
+            arrayOfDividedNumbersThird[index] = number // maxValue
         }
         Log.e("DIVIDED_ARRAY_Third", arrayOfDividedNumbersThird.contentToString())
 
