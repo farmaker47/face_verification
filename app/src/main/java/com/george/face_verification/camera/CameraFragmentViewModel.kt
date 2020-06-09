@@ -246,11 +246,11 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         tempCanvas.drawBitmap(bitmap, 0F, 0F, null)
 
         // Create the Face Detector with parameters
-        val detector: FaceDetector = FaceDetector.Builder(context)
+        /*val detector: FaceDetector = FaceDetector.Builder(context)
             .setTrackingEnabled(true)
             .setLandmarkType(FaceDetector.ALL_LANDMARKS)
             .setMode(FaceDetector.ACCURATE_MODE)
-            .build()
+            .build()*/
 
 
         if (!faceDetector!!.isOperational) {
@@ -303,13 +303,12 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
                 )
 
             // Use this specific name for created face bitmap
-            //saveBitmapToPhone(croppedFaceBitmap)
+            // saveBitmapToPhone(croppedFaceBitmap)
 
             // After all this procedure we pass our bitmap inside interpreter
             classify(croppedFaceBitmap)
 
         }
-
 
     }
 

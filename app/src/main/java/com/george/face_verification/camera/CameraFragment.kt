@@ -428,7 +428,7 @@ class CameraFragment : Fragment() {
             )
 
             // Attach the viewfinder's surface provider to preview use case
-            preview?.setSurfaceProvider(binding.viewFinder.createSurfaceProvider(camera?.cameraInfo))
+            preview?.setSurfaceProvider(binding.viewFinder.createSurfaceProvider())
         } catch (exc: Exception) {
             Log.e(TAG, "Use case binding failed", exc)
         }

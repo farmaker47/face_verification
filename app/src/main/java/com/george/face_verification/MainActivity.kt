@@ -79,10 +79,6 @@ class MainActivity : AppCompatActivity() {
             return if (mediaDir != null && mediaDir.exists())
                 mediaDir else appContext.filesDir
         }
-
-        fun toastNumberMessages(numberOfPhotos: Int, context: Context?) {
-            Toast.makeText(context, "$numberOfPhotos", Toast.LENGTH_SHORT).show()
-        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
