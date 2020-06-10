@@ -1,3 +1,6 @@
+### Under construction
+____________________________________________________________
+
 # face_verification
 Kotlin android project of face verification using Keras/Tensorflow model.
 
