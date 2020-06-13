@@ -103,4 +103,7 @@ dependencies {
 
     // Play services for Face detector
     implementation  'com.google.android.gms:play-services:12.0.1'
+
+    // Security Jetpack
+    implementation "androidx.security:security-crypto:1.1.0-alpha01"
 }

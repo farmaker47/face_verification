@@ -18,6 +18,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import androidx.security.crypto.EncryptedFile
+import androidx.security.crypto.MasterKeys
 import com.george.face_verification.MainActivity
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
@@ -546,7 +548,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         // Delete taken picture
         val file = File(pathOfPhoto!!.substring(7, pathOfPhoto!!.length))
-        file.delete()
+        //file.delete()
 
 
         return "Prediction Result: %d\nConfidence: %2f"
@@ -554,6 +556,8 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun saveResizedBitmapToPhone(croppedFaceBitmap: Bitmap, name: String) {
+
+
         val mypath = File(outputDirectory, name)
         val fos: FileOutputStream?
         try {
@@ -562,6 +566,26 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
             fos.close()
         } catch (e: Exception) {
             Log.i("SAVE_IMAGE", e.message, e)
+        }
+
+
+        // Although you can define your own key generation parameter specification, it's
+        // recommended that you use the value specified here.
+        val keyGenParameterSpec = MasterKeys.AES256_GCM_SPEC
+        val masterKeyAlias = MasterKeys.getOrCreate(keyGenParameterSpec)
+
+        // Creates a file with this name, or replaces an existing file
+        // that has the same name. Note that the file name cannot contain
+        // path separators.
+        val encryptedFile = EncryptedFile.Builder(
+            File(outputDirectory, name),
+            context,
+            masterKeyAlias,
+            EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
+        ).build()
+
+        encryptedFile.openFileOutput().bufferedWriter().use {
+            it.write("SOLOUPIS INFORMATION")
         }
     }
 
