@@ -40,6 +40,7 @@ import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import org.tensorflow.lite.gpu.GpuDelegate
 
 
 class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
@@ -67,6 +68,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     private var outputDirectoryTenPhotos: File? = null
     private var listOfPhotos: Array<File>? = null
     private lateinit var interpreter: Interpreter
+    private var gpuDelegate: GpuDelegate? = null
 
     /** Executor to run inference task in the background. */
     private val executorService: ExecutorService = Executors.newCachedThreadPool()
@@ -102,11 +104,15 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
     // Initialize interpreter
     @Throws(IOException::class)
     private suspend fun initializeInterpreter(app: Application) = withContext(Dispatchers.IO) {
+
+        gpuDelegate = GpuDelegate()
         // Load the TF Lite model from asset folder and initialize TF Lite Interpreter without NNAPI enabled.
         val assetManager = app.assets
-        val model = loadModelFile(assetManager, "face_recog_model_layer.tflite")
+        val model = loadModelFile(assetManager, "face_recog_64.tflite")
         val options = Interpreter.Options()
         options.setUseNNAPI(false)
+        options.addDelegate(gpuDelegate)
+        options.setNumThreads(4)
         interpreter = Interpreter(model, options)
         // Reads type and shape of input and output tensors, respectively.
         val imageTensorIndex = 0
@@ -548,7 +554,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         // Delete taken picture
         val file = File(pathOfPhoto!!.substring(7, pathOfPhoto!!.length))
-        //file.delete()
+        file.delete()
 
 
         return "Prediction Result: %d\nConfidence: %2f"
@@ -569,7 +575,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
         }
 
 
-        // Although you can define your own key generation parameter specification, it's
+        /*// Although you can define your own key generation parameter specification, it's
         // recommended that you use the value specified here.
         val keyGenParameterSpec = MasterKeys.AES256_GCM_SPEC
         val masterKeyAlias = MasterKeys.getOrCreate(keyGenParameterSpec)
@@ -586,7 +592,7 @@ class CameraFragmentViewModel(app: Application) : AndroidViewModel(app) {
 
         encryptedFile.openFileOutput().bufferedWriter().use {
             it.write("SOLOUPIS INFORMATION")
-        }
+        }*/
     }
 
     private fun saveResizedBitmapToPhoneNull(croppedFaceBitmap: Bitmap?, name: String) {
